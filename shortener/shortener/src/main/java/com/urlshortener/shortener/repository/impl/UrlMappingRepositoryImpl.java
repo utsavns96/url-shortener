@@ -15,7 +15,7 @@ import java.util.Optional;
 @Repository
 public class UrlMappingRepositoryImpl implements UrlMappingRepository {
     private final DynamoDbClient dynamoDbClient;
-    private final String tableName = "url-mappings";
+    private final String tableName = "urlmappings";
 
     public UrlMappingRepositoryImpl(DynamoDbClient dynamoDbClient) {
         this.dynamoDbClient = dynamoDbClient;
@@ -26,8 +26,8 @@ public class UrlMappingRepositoryImpl implements UrlMappingRepository {
         // Implementation to save the URL mapping to DynamoDB
         // Use the DynamoDbClient to put the item in the table
         Map<String, AttributeValue> item = new HashMap<>();
-        item.put("shortURL",AttributeValue.fromS(urlMapping.getShortURL()));
-        item.put("originalURL", AttributeValue.fromS(urlMapping.getOriginalURL()));
+        item.put("shortUrl",AttributeValue.fromS(urlMapping.getShortUrl()));
+        item.put("originalUrl", AttributeValue.fromS(urlMapping.getOriginalUrl()));
         item.put("expiryTime", AttributeValue.fromN(String.valueOf(urlMapping.getExpiryTime())));
 
         PutItemRequest request = PutItemRequest.builder()
@@ -41,7 +41,7 @@ public class UrlMappingRepositoryImpl implements UrlMappingRepository {
     @Override
     public Optional<UrlMapping> findByShortURL(String shortURL){
         Map<String, AttributeValue> key = new HashMap<>();
-        key.put("shortURL", AttributeValue.fromS(shortURL));
+        key.put("shortUrl", AttributeValue.fromS(shortURL));
 
         GetItemRequest request = GetItemRequest.builder()
                 .tableName(tableName)
@@ -54,8 +54,8 @@ public class UrlMappingRepositoryImpl implements UrlMappingRepository {
         }
 
         UrlMapping urlMapping = new UrlMapping(
-                item.get("shortURL").s(),
-                item.get("originalURL").s(),
+                item.get("shortUrl").s(),
+                item.get("originalUrl").s(),
                 Long.parseLong(item.get("expiryTime").n())
         );
         return Optional.of(urlMapping);

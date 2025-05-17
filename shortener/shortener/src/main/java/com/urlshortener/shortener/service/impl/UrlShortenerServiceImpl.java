@@ -3,11 +3,14 @@ package com.urlshortener.shortener.service.impl;
 import com.urlshortener.shortener.model.UrlMapping;
 import com.urlshortener.shortener.repository.UrlMappingRepository;
 import com.urlshortener.shortener.service.UrlShortenerService;
+import org.springframework.stereotype.Service;
+
 
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+@Service
 public class UrlShortenerServiceImpl implements UrlShortenerService {
 
     private final UrlMappingRepository repository;
@@ -30,6 +33,6 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     public Optional<String> getOriginalURL(String shortURL) {
         // Logic to retrieve the original URL from the repository
         return repository.findByShortURL(shortURL)
-                .map(UrlMapping::getOriginalURL);
+                .map(UrlMapping::getOriginalUrl);
     }
 }
