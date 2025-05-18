@@ -4,6 +4,6 @@ import java.time.Instant;
 import java.util.Optional;
 
 public interface UrlShortenerService {
-    String createShortURL(String originalURL, Instant expiryTime);
-    Optional<String> getOriginalURL(String shortURL);
+    String createShortUrl(String originalURL, Instant expiryTime);
+    Optional<String> getOriginalUrl(String shortURL);
 }

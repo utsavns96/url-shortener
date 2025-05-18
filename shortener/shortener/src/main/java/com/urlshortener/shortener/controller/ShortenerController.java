@@ -15,19 +15,19 @@ public class ShortenerController {
         this.service = service;
     }
 
-    @GetMapping("/{shortURL}")
-    public String redirectToOriginal(@PathVariable String shortURL) {
+    @GetMapping("/{shortUrl}")
+    public String redirectToOriginal(@PathVariable String shortUrl) {
         // Logic to retrieve the original URL from the database using the short URL
         // and redirect the user to the original URL.
-        return service.getOriginalURL(shortURL)
+        return service.getOriginalUrl(shortUrl)
                 .map(url -> "Redirecting to: " + url)
                 .orElse("URL not found or expired");
     }
 
     @PostMapping("/shorten")
-    public String createShortURL(@RequestBody String originalURL){
+    public String createShortURL(@RequestBody String originalUrl){
         // Logic to create a short URL from the original URL and store it in the database.
         // Return the generated short URL.
-        return service.createShortURL(originalURL, Instant.now().plusSeconds(3600));
+        return service.createShortUrl(originalUrl, Instant.now().plusSeconds(3600));
     }
 }
