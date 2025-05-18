@@ -31,6 +31,13 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         Optional<UrlMapping> existingMapping = repository.findByShortURL(shortURL);
         if(existingMapping.isPresent()){
             // If the short URL already exists, we can either return it or generate a new one
+            UrlMapping mapping = existingMapping.get();
+            if(mapping.getExpiryTime() < expiryTime.getEpochSecond())
+            {
+                long newExpiryTime = expiryTime.getEpochSecond()+3600;
+                mapping.setExpiryTime(newExpiryTime);
+                repository.save(mapping);
+            }
             return shortURL;
         }
         UrlMapping mapping = new UrlMapping(shortURL, originalURL, expiryTime.getEpochSecond());
