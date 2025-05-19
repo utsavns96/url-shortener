@@ -175,16 +175,20 @@ The last class for now, which is used to initialize the AWS SDK and DynamoDB cli
 5. In Headers, enter `Content-Type` as the key and `text/plain` as the value.
 
 ![img.png](images/img.png)
+
 6. Now move to the `Body` tab, where you set the type to `raw` and `Text` as the format. In the text box below, enter a URL that you want to shorten.
 
 ![img_1.png](images/img_1.png)
+
 8. Click on `Send` to send the request. You should see a response with the shortened URL.
 
 ![img_2.png](images/img_2.png)
+
 9. To test the `GET` request, create a new request in Postman of the type `GET`.
 10. Enter the URL `http://localhost:8080/api/{shortUrl}` where `{shortUrl}` is the shortened URL you received in the previous step.
 
 ![img_4.png](images/img_4.png)
+
 11. You can also check the DynamoDB console to see if the item has been created in the table. Go to the `Explore Items` section of your table and you should see the item with the `shortUrl`, `originalUrl`, and `expiryTime` attributes.
 
 ![img_5.png](images/img_5.png)
