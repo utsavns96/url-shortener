@@ -24,23 +24,24 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
 
 
     @Override
-    public String createShortUrl(String originalURL, Instant expiryTime) {
+    public String createShortUrl(String originalURL) {
         // Logic to create a short URL and save it to the repository
         //String shortURL = UUID.randomUUID().toString().substring(0, 8); // Simple short URL generation
         String shortURL = generateShortUrl(originalURL);
+        Instant now = Instant.now(); // Get the current time
         Optional<UrlMapping> existingMapping = repository.findByShortURL(shortURL);
         if(existingMapping.isPresent()){
             // If the short URL already exists, we can either return it or generate a new one
             UrlMapping mapping = existingMapping.get();
-            if(mapping.getExpiryTime() < expiryTime.getEpochSecond())
+            if(mapping.getExpiryTime() < now.getEpochSecond())
             {
-                long newExpiryTime = expiryTime.getEpochSecond()+3600;
+                long newExpiryTime = now.getEpochSecond()+3600;
                 mapping.setExpiryTime(newExpiryTime);
                 repository.save(mapping);
             }
             return shortURL;
         }
-        UrlMapping mapping = new UrlMapping(shortURL, originalURL, expiryTime.getEpochSecond());
+        UrlMapping mapping = new UrlMapping(shortURL, originalURL, now.getEpochSecond()+3600);
         repository.save(mapping);
         return shortURL;
     }
@@ -48,7 +49,7 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     private String generateShortUrl(String originalUrl){
         //Using a consistent hash function to generate a short URL
         try{
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hash = md.digest(originalUrl.getBytes(StandardCharsets.UTF_8));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(hash).substring(0, 8);
         }

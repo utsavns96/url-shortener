@@ -3,7 +3,6 @@ package com.urlshortener.shortener.controller;
 import com.urlshortener.shortener.service.UrlShortenerService;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 
 @RestController
 @RequestMapping("/api")
@@ -28,6 +27,6 @@ public class ShortenerController {
     public String createShortURL(@RequestBody String originalUrl){
         // Logic to create a short URL from the original URL and store it in the database.
         // Return the generated short URL.
-        return service.createShortUrl(originalUrl, Instant.now().plusSeconds(3600));
+        return service.createShortUrl(originalUrl);
     }
 }
