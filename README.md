@@ -56,4 +56,135 @@ The AWS setup for this project needs a couple of components to function properly
 11. Scroll down to find 'Time to Live (TTL)', and click on 'Turn on'.
 12. Enter **expiryTime** as the TTL attribute name and click on 'Turn on TTL'.
 
+### 3. Spring Boot
+I am assuming that you have Java and an IDE of your choice installed. I prefer IntelliJ IDEA, but you can use any IDE you like. <br>
+1. Go to [Spring Initializr](https://start.spring.io/) and create a new Spring Boot project with the following dependencies:
+   - Spring Web
+   - Spring Cloud Function
+   - Lombok
+   *We need the below dependencies too, but they are not available in start.spring.io. We will add them manually later.*
+   - AWS SDK DynamoDB
+   
+2. Choose the latest available stable version of Spring Boot (e.g., `3.2.5`).
+3. Set the project metadata:
+   - Group: `com.urlshortener`
+   - Artifact: `shortener`
+   - Name: `shortener`
+   - Package name: `com.urlshortener.shortener`
+   - Packaging: `Jar`
+   - Java version: `21` (or the version you are using)
+4. Click on `Generate` to download the project as a zip file.
+5. Unzip the downloaded file and open it in your IDE.
+6. Open the `pom.xml` file and add the following dependencies:
+```
+<dependency>
+    <groupId>software.amazon.awssdk</groupId>
+    <artifactId>dynamodb</artifactId>
+    <version>2.20.0</version>
+</dependency>
+```
+---
 
+## Technical Design
+
+The project is split into packages based on functions to keep the code clean and organized. The main packages are:
+- `controller`: Contains the REST controller for handling incoming requests.
+- `service`: Contains the service layer for business logic.
+- `repository`: Contains the repository layer for interacting with DynamoDB.
+- `model`: Contains the model classes for the application.
+- `config`: Contains the configuration classes for AWS SDK and DynamoDB.
+
+The main class `ShortenerApplication` is the entry point for the Spring Boot application.
+
+### 1. controller.ShortenerController.java: 
+
+This class contains the REST endpoints for the application, handling incoming requests and returns responses to the client. 
+
+It contains the following endpoints:
+- `POST /shorten`: Shortens a given URL and returns the shortened URL.
+- `GET /{shortUrl}`: Redirects to the original URL for the given shortened URL.
+
+Since we are using Spring Boot, we simply need to create methods with the required annotations to handle the requests.
+
+- `createShortURL`: handles our POST request, and is annotated with `@PostMapping("/shorten")`
+
+  - The logic for this is fairly simple - The method takes a URL as input from the user, and calls `createShortUrl` from `UrlShortenerService` to return a shortened URL. 
+- `getOriginalURL`: handles our GET request, and is annotated with `@GetMapping("/{shortUrl}")`
+
+   - Given a shortUrl from the user, this method calls `getOriginalUrl` from `UrlShortenerService` to return the original URL.
+
+### 2. service.UrlShortenerService.java
+This is an interface that defines the methods we use above for shortening and retrieving URLs.
+The methods defined here are implemented by the `UrlShortenerServiceImpl` class.
+
+### 3. service.impl.UrlShortenerServiceImpl.java
+This class implements the `UrlShortenerService` interface and contains the business logic for shortening and retrieving URLs.
+It contains the following methods:
+- `createShortUrl`: This method takes the URL input from the user and returns a shortUrl. There are 2 cases that we need to address here: first if we have a new URL that we haven't seen before, and the second if we already have that URL in our database.
+
+   We start by generating a `shortUrl` using the method `generateShortUrl()`. It then checks in our database if there is an entry with this `shortUrl`. 
+  - If an entry is found, it checks if the `expiryTime` of the entry has passed the current time. 
+    - If it has, the database entry is updated with a new `expiryTime` as `now + 3600 seconds` (1 hr). 
+    - If it hasn't, it skips to the return statement.
+  
+    Finally, it returns the `shortUrl`. 
+  - If an entry is not found in the database, it creates a new entry in the database with the `shortUrl` and `originalUrl`, and sets the `expiryTime` as `now + 3600 seconds` (1 hr). It then returns the `shortUrl`.
+
+- `generateShortUrl()`: This method is used to generate a `shortUrl` from a given `originalUrl`.
+    We first create a MessageDigest object using the SHA-256 algorithm, and then we convert our `originalUrl` into a byte array using UTF_8 encoding. This is passed to our `digest` method, which returns a byte array.
+    This byte array is converted into a Base64 string that is URL-safe, and removes any padding characters in the Base64 output.
+    Finally, we take the first 8 characters of the Base64 string and return it as our `shortUrl`.
+
+- `getOriginalUrl`: This method takes a `shortUrl` as input and returns the `originalUrl`. It first checks if the `shortUrl` exists in our DynamoDB table.
+
+### 4. UrlMapping.java
+
+This class is used to create the URL mapping object that mirrors our database. It contains the following fields:
+- `shortUrl`: The shortened URL.
+- `originalUrl`: The original URL.
+- `expiryTime`: The expiry time of the shortened URL in epoch format.
+We use lombok annotations to generate getters, setters, and constructors for this class. 
+
+### 5. UrlMappingRepository.java
+
+This class is the interface that we use to interact with our DynamoDB table. It contains the following methods:
+- `save`: Saves a new item to the DynamoDB table.
+- `findByShortUrl`: Finds a database item based on its shortened URL.
+
+### 6. UrlMappingRepositoryImpl.java
+
+This class contains the business logic to perform the database reads/writes, and implements `UrlMappingRepository`. 
+We define an object of `DynamoDBClient` from the AWS SDK to interact with our DynamoDB table.
+This class contains the following methods:
+
+- `save`: This method takes a `UrlMapping` object as input and saves it to the DynamoDB table. It creates a new HashMap called `item` to store our data elements, and we enter our `shortUrl`, `originalUrl` and `expiryTime` into this map using AttributeValue and the corresponding `fromS() or fromN()` method based on the datatype. We then create a `PutItemRequest` object with the table name and the item to be saved, and call the `putItem` method of the `DynamoDBClient` object to save the item to the table.
+- `findByShortUrl`: This method takes a `shortUrl` as input and returns the corresponding `UrlMapping` object from the DynamoDB table. It creates a new HashMap called `key` to store the key of the item to be retrieved, and enters the `shortUrl` into this map using AttributeValue.fromS(). We then create a `GetItemRequest` object with the table name and the key to be retrieved, and call the `getItem` method of the `DynamoDBClient` object to retrieve the item from the table. This returned value is stored in a map, which we use to create a `UrlMapping` object to return. 
+
+### 7. config.DynamoDBConfig.java
+
+The last class for now, which is used to initialize the AWS SDK and DynamoDB client. We setup the parameters for accessing our DynamoDB table, inputting our region and credentials method which at this moment is using environment variables to pass our Access Key and Secret Access Key.
+
+---
+
+## Testing the application
+
+1. Run the application using your preferred method. I use IntelliJ, so I set up my environment variables in the Run/Debug Configurations.
+2. Once the application is running, you can test the endpoints using Postman or any other API testing tool. I use Postman, so the below steps will use that as an example.
+3. Open Postman and create a new request.
+4. Set the request type to `POST` and enter the URL `http://localhost:8080/api/shorten`.
+5. In Headers, enter `Content-Type` as the key and `text/plain` as the value.
+
+![img.png](images/img.png)
+6. Now move to the `Body` tab, where you set the type to `raw` and `Text` as the format. In the text box below, enter a URL that you want to shorten.
+
+![img_1.png](images/img_1.png)
+8. Click on `Send` to send the request. You should see a response with the shortened URL.
+
+![img_2.png](images/img_2.png)
+9. To test the `GET` request, create a new request in Postman of the type `GET`.
+10. Enter the URL `http://localhost:8080/api/{shortUrl}` where `{shortUrl}` is the shortened URL you received in the previous step.
+
+![img_4.png](images/img_4.png)
+11. You can also check the DynamoDB console to see if the item has been created in the table. Go to the `Explore Items` section of your table and you should see the item with the `shortUrl`, `originalUrl`, and `expiryTime` attributes.
+
+![img_5.png](images/img_5.png)
