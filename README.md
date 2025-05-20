@@ -2,6 +2,26 @@
 This project aims to implement a URL Shortener using Spring Boot and DynamoDB for implementation.
 
 ---
+## Table of Contents
+1) [Prerequisites](#prerequisites)
+   - [AWS IAM & CLI](#1-aws-iam--cli)
+   - [DynamoDB](#2-dynamodb)
+   - [Spring Boot](#3-spring-boot)
+
+
+2) [Technical Design](#technical-design)
+   - [controller.ShortenerController.java](#1-controllershortenercontrollerjava-)
+   - [service.UrlShortenerService.java](#2-serviceurlshortenerservicejava)
+   - [service.impl.UrlShortenerServiceImpl.java](#3-serviceimplurlshortenerserviceimpljava)
+   - [UrlMapping.java](#4-urlmappingjava)
+   - [UrlMappingRepository.java](#5-urlmappingrepositoryjava)
+   - [UrlMappingRepositoryImpl.java](#6-urlmappingrepositoryimpljava)
+   - [config.DynamoDBConfig.java](#7-configdynamodbconfigjava)
+
+
+3) [Testing the application](#testing-the-application)
+
+---
 
 ## Prerequisites:
 ### 1. AWS IAM & CLI
