@@ -1,9 +1,10 @@
 package com.urlshortener.shortener.controller;
 
 import com.urlshortener.shortener.service.UrlShortenerService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-
+@Slf4j
 @RestController
 @RequestMapping("/api")
 public class ShortenerController {
@@ -18,6 +19,7 @@ public class ShortenerController {
     public String redirectToOriginal(@PathVariable String shortUrl) {
         // Logic to retrieve the original URL from the database using the short URL
         // and redirect the user to the original URL.
+        log.info("Redirect request for {}", shortUrl);
         return service.getOriginalUrl(shortUrl)
                 .map(url -> "Redirecting to: " + url)
                 .orElse("URL not found or expired");
@@ -27,6 +29,7 @@ public class ShortenerController {
     public String createShortURL(@RequestBody String originalUrl){
         // Logic to create a short URL from the original URL and store it in the database.
         // Return the generated short URL.
+        log.info("Shorten request for {}", originalUrl);
         return service.createShortUrl(originalUrl);
     }
 }
