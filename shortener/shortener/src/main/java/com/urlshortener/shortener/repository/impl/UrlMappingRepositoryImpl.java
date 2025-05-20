@@ -4,9 +4,7 @@ import com.urlshortener.shortener.repository.UrlMappingRepository;
 import com.urlshortener.shortener.model.UrlMapping;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +14,7 @@ import java.util.Optional;
 public class UrlMappingRepositoryImpl implements UrlMappingRepository {
     private final DynamoDbClient dynamoDbClient;
     private final String tableName = "urlmappings";
-
+    private final String GSI_NAME = "originalUrlHash-index";
     public UrlMappingRepositoryImpl(DynamoDbClient dynamoDbClient) {
         this.dynamoDbClient = dynamoDbClient;
     }
@@ -29,6 +27,7 @@ public class UrlMappingRepositoryImpl implements UrlMappingRepository {
         item.put("shortUrl",AttributeValue.fromS(urlMapping.getShortUrl()));
         item.put("originalUrl", AttributeValue.fromS(urlMapping.getOriginalUrl()));
         item.put("expiryTime", AttributeValue.fromN(String.valueOf(urlMapping.getExpiryTime())));
+        item.put("originalUrlHash", AttributeValue.fromS(urlMapping.getOriginalUrlHash()));
 
         PutItemRequest request = PutItemRequest.builder()
                 .tableName(tableName)
@@ -56,7 +55,37 @@ public class UrlMappingRepositoryImpl implements UrlMappingRepository {
         UrlMapping urlMapping = new UrlMapping(
                 item.get("shortUrl").s(),
                 item.get("originalUrl").s(),
-                Long.parseLong(item.get("expiryTime").n())
+                Long.parseLong(item.get("expiryTime").n()),
+                item.get("originalUrlHash").s()
+        );
+        return Optional.of(urlMapping);
+    }
+
+    @Override
+    public Optional<UrlMapping> findByOriginalUrlHash(String originalUrlHash) {
+        Map<String, AttributeValue> expressionValues = new HashMap<>();
+        expressionValues.put(":originalUrlHash", AttributeValue.fromS(originalUrlHash));
+
+        QueryRequest request = QueryRequest.builder()
+                .tableName(tableName)
+                .indexName(GSI_NAME)
+                .keyConditionExpression("originalUrlHash = :originalUrlHash")
+                .expressionAttributeValues(expressionValues)
+                .build();
+
+        QueryResponse response = dynamoDbClient.query(request);
+
+        if(response == null || response.items().isEmpty()) {
+            return Optional.empty();
+        }
+
+        Map<String, AttributeValue> item = response.items().get(0);
+
+        UrlMapping urlMapping = new UrlMapping(
+                item.get("shortUrl").s(),
+                item.get("originalUrl").s(),
+                Long.parseLong(item.get("expiryTime").n()),
+                item.get("originalUrlHash").s()
         );
         return Optional.of(urlMapping);
     }
