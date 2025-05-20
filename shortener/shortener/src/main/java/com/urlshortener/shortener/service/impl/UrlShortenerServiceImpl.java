@@ -24,26 +24,45 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
 
 
     @Override
-    public String createShortUrl(String originalURL) {
+    public String createShortUrl(String originalUrl) {
         // Logic to create a short URL and save it to the repository
-        //String shortURL = UUID.randomUUID().toString().substring(0, 8); // Simple short URL generation
-        String shortURL = generateShortUrl(originalURL);
+
+        String originalUrlHash = computeUrlHash(originalUrl);
         Instant now = Instant.now(); // Get the current time
-        Optional<UrlMapping> existingMapping = repository.findByShortURL(shortURL);
+
+        //1. Check if the original URL already exists
+        Optional<UrlMapping> existingMapping = repository.findByOriginalUrlHash(originalUrlHash);
         if(existingMapping.isPresent()){
-            // If the short URL already exists, we can either return it or generate a new one
             UrlMapping mapping = existingMapping.get();
             if(mapping.getExpiryTime() < now.getEpochSecond())
             {
-                long newExpiryTime = now.getEpochSecond()+3600;
-                mapping.setExpiryTime(newExpiryTime);
+                mapping.setExpiryTime(now.getEpochSecond()+3600);
                 repository.save(mapping);
             }
-            return shortURL;
+            return mapping.getShortUrl();
         }
-        UrlMapping mapping = new UrlMapping(shortURL, originalURL, now.getEpochSecond()+3600);
+        //2. Else, generate new short URL by checking for collisions
+        String shortUrl=null;
+        int counter = 0;
+        final int MAX_RETRIES = 10; // Maximum number of retries to avoid infinite loop
+        //generate shortUrl
+        while(counter<MAX_RETRIES){
+            String input = (counter == 0) ? originalUrl : originalUrl + counter;
+            shortUrl = generateShortUrl(input);
+            Optional<UrlMapping> collisionCheckMapping = repository.findByShortURL(shortUrl);
+            if(collisionCheckMapping.isEmpty()){
+
+                break;
+            }
+            counter++;
+        }
+        if (counter == MAX_RETRIES) {
+            throw new RuntimeException("Failed to generate unique short URL after " + MAX_RETRIES + " attempts");
+        }
+
+        UrlMapping mapping = new UrlMapping(shortUrl, originalUrl, now.getEpochSecond()+3600, originalUrlHash);
         repository.save(mapping);
-        return shortURL;
+        return shortUrl;
     }
 
     private String generateShortUrl(String originalUrl){
@@ -56,6 +75,17 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         catch (NoSuchAlgorithmException e)
         {
             throw new RuntimeException("Error generating short URL", e);
+        }
+    }
+
+    private String computeUrlHash(String originalUrl){
+        try{
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(originalUrl.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        }
+        catch(NoSuchAlgorithmException e){
+            throw new RuntimeException("Error computing URL hash", e);
         }
     }
 
