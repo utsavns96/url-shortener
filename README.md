@@ -8,18 +8,19 @@ This project aims to implement a URL Shortener using Spring Boot and DynamoDB fo
    - [DynamoDB](#2-dynamodb)
    - [Spring Boot](#3-spring-boot)
 
+2) [AWS Deployment](#aws-deployment)
 
-2) [Technical Design](#technical-design)
+3) [Technical Design](#technical-design)
    - [controller.ShortenerController.java](#1-controllershortenercontrollerjava-)
    - [service.UrlShortenerService.java](#2-serviceurlshortenerservicejava)
    - [service.impl.UrlShortenerServiceImpl.java](#3-serviceimplurlshortenerserviceimpljava)
-   - [UrlMapping.java](#4-urlmappingjava)
-   - [UrlMappingRepository.java](#5-urlmappingrepositoryjava)
-   - [UrlMappingRepositoryImpl.java](#6-urlmappingrepositoryimpljava)
+   - [model.UrlMapping.java](#4-modelurlmappingjava)
+   - [repository.UrlMappingRepository.java](#5-repositoryurlmappingrepositoryjava)
+   - [repository.impl.UrlMappingRepositoryImpl.java](#6-repositoryimplurlmappingrepositoryimpljava)
    - [config.DynamoDBConfig.java](#7-configdynamodbconfigjava)
 
 
-3) [Testing the application](#testing-the-application)
+4) [Testing the application](#testing-the-application)
 
 ---
 
@@ -105,6 +106,11 @@ I am assuming that you have Java and an IDE of your choice installed. I prefer I
 ```
 ---
 
+## AWS Deployment
+
+
+---
+
 ## Technical Design
 
 The project is split into packages based on functions to keep the code clean and organized. The main packages are:
@@ -157,7 +163,7 @@ It contains the following methods:
 
 - `getOriginalUrl`: This method takes a `shortUrl` as input and returns the `originalUrl`. It first checks if the `shortUrl` exists in our DynamoDB table.
 
-### 4. UrlMapping.java
+### 4. model.UrlMapping.java
 
 This class is used to create the URL mapping object that mirrors our database. It contains the following fields:
 - `shortUrl`: The shortened URL.
@@ -165,13 +171,13 @@ This class is used to create the URL mapping object that mirrors our database. I
 - `expiryTime`: The expiry time of the shortened URL in epoch format.
 We use lombok annotations to generate getters, setters, and constructors for this class. 
 
-### 5. UrlMappingRepository.java
+### 5. repository.UrlMappingRepository.java
 
 This class is the interface that we use to interact with our DynamoDB table. It contains the following methods:
 - `save`: Saves a new item to the DynamoDB table.
 - `findByShortUrl`: Finds a database item based on its shortened URL.
 
-### 6. UrlMappingRepositoryImpl.java
+### 6. repository.impl.UrlMappingRepositoryImpl.java
 
 This class contains the business logic to perform the database reads/writes, and implements `UrlMappingRepository`. 
 We define an object of `DynamoDBClient` from the AWS SDK to interact with our DynamoDB table.
@@ -182,7 +188,11 @@ This class contains the following methods:
 
 ### 7. config.DynamoDBConfig.java
 
-The last class for now, which is used to initialize the AWS SDK and DynamoDB client. We setup the parameters for accessing our DynamoDB table, inputting our region and credentials method which at this moment is using environment variables to pass our Access Key and Secret Access Key.
+The last class for now, which is used to initialize the AWS SDK and DynamoDB client. We set up the parameters for accessing our DynamoDB table, inputting our region and credentials method which at this moment is using environment variables to pass our Access Key and Secret Access Key.
+
+### 8. StreamLambdaHandler.java
+
+This class is boilerplate code used to create a Spring Cloud Function handler for the application. It implements the `RequestHandler` interface and overrides the `handleRequest` method to handle incoming requests. The `handleRequest` method takes an `AwsProxyRequest` as input and returns an `AwsProxyResponse` as output. It uses the `ShortenerController` class to handle the request and return the response.
 
 ---
 

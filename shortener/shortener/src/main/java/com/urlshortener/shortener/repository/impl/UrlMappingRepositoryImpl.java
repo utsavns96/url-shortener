@@ -3,6 +3,7 @@ package com.urlshortener.shortener.repository.impl;
 import com.urlshortener.shortener.repository.UrlMappingRepository;
 import com.urlshortener.shortener.model.UrlMapping;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
@@ -15,8 +16,12 @@ import java.util.Optional;
 @Repository
 public class UrlMappingRepositoryImpl implements UrlMappingRepository {
     private final DynamoDbClient dynamoDbClient;
-    private final String tableName = "urlmappings";
-    private final String GSI_NAME = "originalUrlHash-index";
+    //private final String tableName = "urlmappings";
+    @Value("${dynamodb.table.name}")
+    private String tableName;
+    //private final String GSI_NAME = "originalUrlHash-index";
+    @Value("${dynamodb.index.name}")
+    private String GSI_NAME;
     public UrlMappingRepositoryImpl(DynamoDbClient dynamoDbClient) {
         this.dynamoDbClient = dynamoDbClient;
     }
