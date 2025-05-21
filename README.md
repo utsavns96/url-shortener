@@ -10,7 +10,9 @@ This project aims to implement a URL Shortener using Spring Boot and DynamoDB fo
 
 2) [AWS Deployment](#aws-deployment)
 
-3) [Technical Design](#technical-design)
+3) Jenkins Setup
+
+4) [Technical Design](#technical-design)
    - [controller.ShortenerController.java](#1-controllershortenercontrollerjava-)
    - [service.UrlShortenerService.java](#2-serviceurlshortenerservicejava)
    - [service.impl.UrlShortenerServiceImpl.java](#3-serviceimplurlshortenerserviceimpljava)
@@ -20,7 +22,7 @@ This project aims to implement a URL Shortener using Spring Boot and DynamoDB fo
    - [config.DynamoDBConfig.java](#7-configdynamodbconfigjava)
 
 
-4) [Testing the application](#testing-the-application)
+5) [Testing the application](#testing-the-application)
 
 ---
 
