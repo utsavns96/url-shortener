@@ -89,6 +89,11 @@
 			<artifactId>s3</artifactId>
 			<version>2.20.0</version> <!-- Use latest compatible version -->
 		</dependency>
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+			<version>3.1.1</version>
+		</dependency>
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>
