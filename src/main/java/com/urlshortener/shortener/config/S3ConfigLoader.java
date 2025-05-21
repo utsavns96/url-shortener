@@ -44,6 +44,17 @@ public class S3ConfigLoader {
         }
         catch (Exception e)
         {
+            //Fallback to local application.properties
+            try(InputStream localInput = getClass().getClassLoader().getResourceAsStream("application.properties")) {
+                if (localInput != null) {
+                    Properties properties = new Properties();
+                    properties.load(localInput);
+                    PropertiesPropertySource localPropertySource = new PropertiesPropertySource("LocalProperties", properties);
+                    environment.getPropertySources().addFirst(localPropertySource);
+                }
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to load local properties", ex);
+            }
             throw new RuntimeException("Failed to load properties from S3", e);
         }
     }
