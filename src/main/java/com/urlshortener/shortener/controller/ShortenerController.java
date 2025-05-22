@@ -2,6 +2,9 @@ package com.urlshortener.shortener.controller;
 
 import com.urlshortener.shortener.service.UrlShortenerService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -16,13 +19,15 @@ public class ShortenerController {
     }
 
     @GetMapping("/{shortUrl}")
-    public String redirectToOriginal(@PathVariable String shortUrl) {
+    public ResponseEntity<Object> redirectToOriginal(@PathVariable String shortUrl) {
         // Logic to retrieve the original URL from the database using the short URL
         // and redirect the user to the original URL.
         log.info("Redirect request for {}", shortUrl);
         return service.getOriginalUrl(shortUrl)
-                .map(url -> "Redirecting to: " + url)
-                .orElse("URL not found or expired");
+                .map(url -> ResponseEntity.status(HttpStatus.FOUND)
+                        .header(HttpHeaders.LOCATION, url)
+                        .build())
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/shorten")
