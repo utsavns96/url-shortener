@@ -1,6 +1,7 @@
 package com.urlshortener.shortener.config;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.PropertiesPropertySource;
 import org.springframework.stereotype.Component;
@@ -10,6 +11,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import java.io.InputStream;
 import java.util.Properties;
 
+@Slf4j
 @Component
 public class S3ConfigLoader {
     private final String bucketName = "utsav-url-shortener";
@@ -31,6 +33,7 @@ public class S3ConfigLoader {
 
     public void loadPropertiesFromS3()
     {
+        log.debug("S3ConfigLoader - Loading properties from S3 bucket: {} with key: {}", bucketName, key);
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
@@ -45,6 +48,7 @@ public class S3ConfigLoader {
         catch (Exception e)
         {
             //Fallback to local application.properties
+            log.debug("S3ConfigLoader - Failed to load properties from S3, falling back to local application.properties", e);
             try(InputStream localInput = getClass().getClassLoader().getResourceAsStream("application.properties")) {
                 if (localInput != null) {
                     Properties properties = new Properties();
@@ -53,8 +57,10 @@ public class S3ConfigLoader {
                     environment.getPropertySources().addFirst(localPropertySource);
                 }
             } catch (Exception ex) {
+                log.error("S3ConfigLoader - Failed to load local properties", ex);
                 throw new RuntimeException("Failed to load local properties", ex);
             }
+            log.error("S3ConfigLoader - Failed to load properties from S3", e);
             throw new RuntimeException("Failed to load properties from S3", e);
         }
     }
