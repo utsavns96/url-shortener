@@ -27,9 +27,11 @@ public class ShortenerController {
                 .orElse(null);
         log.info("Redirecting to {}", targetUrl);
         if(targetUrl != null) {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, targetUrl)
-                    .build();
+//            return ResponseEntity.status(HttpStatus.FOUND)
+//                    .header(HttpHeaders.LOCATION, targetUrl)
+//                    .build();
+            return ResponseEntity.ok("{\"message\":\"Redirecting to " + targetUrl + "\"}");
+
         }
         else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
