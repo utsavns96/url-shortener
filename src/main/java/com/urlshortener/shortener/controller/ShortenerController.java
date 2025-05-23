@@ -23,11 +23,23 @@ public class ShortenerController {
         // Logic to retrieve the original URL from the database using the short URL
         // and redirect the user to the original URL.
         log.info("Redirect request for {}", shortUrl);
-        return service.getOriginalUrl(shortUrl)
-                .map(url -> ResponseEntity.status(HttpStatus.FOUND)
-                        .header(HttpHeaders.LOCATION, url)
-                        .build())
-                .orElse(ResponseEntity.notFound().build());
+        String targetUrl = service.getOriginalUrl(shortUrl)
+                .orElse(null);
+        log.info("Redirecting to {}", targetUrl);
+        if(targetUrl != null) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, targetUrl)
+                    .build();
+        }
+        else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("URL not found");
+        }
+//        return service.getOriginalUrl(shortUrl)
+//                .map(url -> ResponseEntity.status(HttpStatus.FOUND)
+//                        .header(HttpHeaders.LOCATION, url)
+//                        .build())
+//                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/shorten")
