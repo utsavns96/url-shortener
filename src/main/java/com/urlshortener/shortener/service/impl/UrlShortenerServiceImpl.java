@@ -28,7 +28,7 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
     @Override
     public String createShortUrl(String originalUrl) {
         // Logic to create a short URL and save it to the repository
-
+        originalUrl = originalUrl.replaceAll("^\"|\"$", "");
         String originalUrlHash = computeUrlHash(originalUrl);
         Instant now = Instant.now(); // Get the current time
 
