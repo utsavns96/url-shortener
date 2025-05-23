@@ -69,6 +69,7 @@ public class UrlMappingRepositoryImpl implements UrlMappingRepository {
                 item.get("originalUrlHash").s()
         );
         log.info("findByShortURL - returning item");
+        log.info("findByShortURL - found item: {}", urlMapping);
         return Optional.of(urlMapping);
     }
 
