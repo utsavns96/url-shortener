@@ -125,6 +125,10 @@ I am assuming that you have Java and an IDE of your choice installed. I prefer I
     <artifactId>dynamodb</artifactId>
     <version>2.20.0</version>
 </dependency>
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
 ```
 ---
 
@@ -169,6 +173,7 @@ It is split into packages based on functions to keep the code clean and organize
 - `repository`: Contains the repository layer for interacting with DynamoDB.
 - `model`: Contains the model classes for the application.
 - `config`: Contains the configuration classes for AWS SDK and DynamoDB.
+- `dto`: Data Transfer Object - a java class that represents data being transferred through the API.
 
 ### Application Entry Points
 
@@ -244,6 +249,7 @@ This class is used to create the URL mapping object that mirrors our database. I
 - `shortUrl`: The shortened URL.
 - `originalUrl`: The original URL.
 - `expiryTime`: The expiry time of the shortened URL in epoch format.
+- `originalUrlHash`: The full hash of the original URL from the shortening request, for reverse lookup using DynamoDB GSI.
 We use lombok annotations to generate getters, setters, and constructors for this class. 
 
 #### 5. repository.UrlMappingRepository.java
@@ -258,30 +264,41 @@ This class contains the business logic to perform the database reads/writes, and
 We define an object of `DynamoDBClient` from the AWS SDK to interact with our DynamoDB table.
 This class contains the following methods:
 
-- `save`: This method takes a `UrlMapping` object as input and saves it to the DynamoDB table. It creates a new HashMap called `item` to store our data elements, and we enter our `shortUrl`, `originalUrl` and `expiryTime` into this map using AttributeValue and the corresponding `fromS() or fromN()` method based on the datatype. We then create a `PutItemRequest` object with the table name and the item to be saved, and call the `putItem` method of the `DynamoDBClient` object to save the item to the table.
+- `save`: This method takes a `UrlMapping` object as input and saves it to the DynamoDB table. It creates a new HashMap called `item` to store our data elements, and we enter our `shortUrl`, `originalUrl`, `expiryTime` and `originalUrlHash` into this map using AttributeValue and the corresponding `fromS() or fromN()` method based on the datatype. We then create a `PutItemRequest` object with the table name and the item to be saved, and call the `putItem` method of the `DynamoDBClient` object to save the item to the table.
 - `findByShortUrl`: This method takes a `shortUrl` as input and returns the corresponding `UrlMapping` object from the DynamoDB table. It creates a new HashMap called `key` to store the key of the item to be retrieved, and enters the `shortUrl` into this map using AttributeValue.fromS(). We then create a `GetItemRequest` object with the table name and the key to be retrieved, and call the `getItem` method of the `DynamoDBClient` object to retrieve the item from the table. This returned value is stored in a map, which we use to create a `UrlMapping` object to return. 
+- `findByOriginalUrlHash`: The final method in this is used for performing reverse lookup of the originalUrl's hashed value using the GSI that we created in DyanmoDB. It is similar to `findByShortUrl()`, but since we are using a GSI here, we cannot implement it using `GetItemRequest`. Instead, we use a `QueryRequest` which allows us to specify the index that we want to use (our GSI in this case). If the response is empty or contains no values, we return empty. If a value is found, the data is unpacked into a urlMapping object and returned.
 
 #### 7. config.DynamoDBConfig.java
 
 The last class for now, which is used to initialize the AWS SDK and DynamoDB client. We set up the parameters for accessing our DynamoDB table, inputting our region and credentials method which at this moment is using environment variables to pass our Access Key and Secret Access Key.
 
-#### 8. StreamLambdaHandler.java
+#### 8. dto.ShortenRequest.java
+
+A `DTO` or `Data Transfer Object` is used to represent the data going in or out of the API. Here, I'm using this dto to perform validation on the incoming `/shorten` request of the API, to check if the request is empty or not, and if the URL in the request is valid or not. This however, necessitates a change in the request from `text/plain` to `application/json`, so that we can use the DTO to perform out validation.
+
+#### 9. StreamLambdaHandler.java
 
 This class is boilerplate code used to create a Spring Cloud Function handler for the application. It implements the `RequestHandler` interface and overrides the `handleRequest` method to handle incoming requests. The `handleRequest` method takes an `AwsProxyRequest` as input and returns an `AwsProxyResponse` as output. It uses the `ShortenerController` class to handle the request and return the response.
 
 ---
 
 ## Testing the application
-
+*Note: Images need to be updated to reflect the new post schema and show AWS deployment*
 1. Run the application using your preferred method. I use IntelliJ, so I set up my environment variables in the Run/Debug Configurations.
 2. Once the application is running, you can test the endpoints using Postman or any other API testing tool. I use Postman, so the below steps will use that as an example.
 3. Open Postman and create a new request.
-4. Set the request type to `POST` and enter the URL `http://localhost:8080/api/shorten`.
-5. In Headers, enter `Content-Type` as the key and `text/plain` as the value.
+4. Set the request type to `POST` 
+   - For Local testing, enter the URL `http://localhost:8080/api/shorten`.
+   - For Testing the AWS deployment, navigate to `API Gateway -> Select your API -> Select "Stages" in the left pane -> Expand till you see the POST Method`. Now click on `POST`, and copy and paste the `Invoke URL` into Postman.
 
 ![img.png](images/img.png)
 
-6. Now move to the `Body` tab, where you set the type to `raw` and `Text` as the format. In the text box below, enter a URL that you want to shorten.
+5. Now move to the `Body` tab, where you set the type to `raw` and `JSON` as the format. In the text box below, create a JSON of the URL that you want to shorten like this:
+```
+{
+    "originalUrl" : "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+}
+```
 
 ![img_1.png](images/img_1.png)
 
@@ -290,10 +307,11 @@ This class is boilerplate code used to create a Spring Cloud Function handler fo
 ![img_2.png](images/img_2.png)
 
 9. To test the `GET` request, create a new request in Postman of the type `GET`.
-10. Enter the URL `http://localhost:8080/api/{shortUrl}` where `{shortUrl}` is the shortened URL you received in the previous step.
-
+10. Localhost: Enter the URL `http://localhost:8080/api/{shortUrl}` where `{shortUrl}` is the shortened URL you received in the previous step.
+    <br>AWS: Paste the `Invoke URL` from the GET Method in API Gateway followed by the shortUrl: `<your-get-invoke-url>/{shortUrl}` 
+    <br> Click `Send` to see the response.
 ![img_4.png](images/img_4.png)
-
-11. You can also check the DynamoDB console to see if the item has been created in the table. Go to the `Explore Items` section of your table and you should see the item with the `shortUrl`, `originalUrl`, and `expiryTime` attributes.
+11. Alternatively, you can paste `http://localhost:8080/api/{shortUrl}` or `<your-get-invoke-url>/{shortUrl}` into your browser and be redirected to the webpage.
+11. You can also check the DynamoDB console to see if the item has been created in the table. Go to the `Explore Items` section of your table and you should see the item with the `shortUrl`, `originalUrl`, `expiryTime` and `originalUrlHash` attributes.
 
 ![img_5.png](images/img_5.png)
