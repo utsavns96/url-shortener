@@ -1,6 +1,8 @@
 # URL Shortener
 This project aims to implement a URL Shortener using Spring Boot and DynamoDB for implementation.
 
+## WIP Documentation
+
 ---
 ## Table of Contents
 1) [Prerequisites](#prerequisites)
@@ -27,6 +29,7 @@ This project aims to implement a URL Shortener using Spring Boot and DynamoDB fo
 ---
 
 ## Prerequisites:
+
 ### 1. AWS IAM & CLI
 The AWS setup for this project needs a couple of components to function properly. For brevity, I'm assuming that you already have an AWS account that is a Root user. <br>
 1. Create a new user with the following permissions:
@@ -109,6 +112,32 @@ I am assuming that you have Java and an IDE of your choice installed. I prefer I
 ---
 
 ## AWS Deployment
+
+---
+
+## Jenkins
+To automate the CI/CD pipeline for this project, I use a local, dockerized installation of Jenkins. Docker is very handy here, because it allows us to run Jenkins without having to install it locally.
+1. Install Docker on your machine if you haven't already.
+2. Open a terminal and run the following command to pull the Jenkins image:
+   ```
+   docker pull jenkins/jenkins
+   ```
+   This fetches the latest LTS (Long Term Support) version of Jenkins.
+3. Run the Jenkins container with the following command:
+   ```
+   docker run -d -p 8080:8080 -p 50000:50000 --name jenkins jenkins/jenkins
+   ```
+   This command runs Jenkins in detached mode (`-d`), maps port `8080` of the container to port `8080` on your host machine, and maps port `50000` for JNLP agents.
+4. Once the container is running, open your web browser and go to `http://localhost:8080`.
+5. You will be prompted to unlock Jenkins. To do this, you need to retrieve the initial admin password. Run the following command in your terminal:
+   ```
+   docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+   ```
+   Copy the password displayed in the terminal.
+6. Paste the password into the Jenkins unlock page and click `Continue`.
+7. You will be prompted to install plugins. You can choose to install the suggested plugins or select specific ones. For this project, you can install the suggested plugins, along with the following additional plugins:
+   - Git plugin
+   - S3
 
 
 ---
