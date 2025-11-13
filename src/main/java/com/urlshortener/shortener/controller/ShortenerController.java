@@ -1,6 +1,8 @@
 package com.urlshortener.shortener.controller;
 
+import com.urlshortener.shortener.dto.ShortenRequest;
 import com.urlshortener.shortener.service.UrlShortenerService;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -45,9 +47,10 @@ public class ShortenerController {
     }
 
     @PostMapping("/shorten")
-    public String createShortURL(@RequestBody String originalUrl){
+    public String createShortURL(@Valid @RequestBody ShortenRequest request){
         // Logic to create a short URL from the original URL and store it in the database.
         // Return the generated short URL.
+        String originalUrl = request.getOriginalUrl();
         log.info("Shorten request for {}", originalUrl);
         return service.createShortUrl(originalUrl);
     }
