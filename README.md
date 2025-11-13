@@ -62,25 +62,42 @@ The AWS setup for this project needs a couple of components to function properly
    - **Default output format**: Enter `json` (Leaving this blank will default it to json).
 
 ### 2. DynamoDB
+The application uses a DynamoDB table with one primary index and one global secondary index (GSI).
+We store both the shortened URL and a hashed version of the original URL to allow efficient reverse lookups.
+
 1. Go to the DynamoDB console and click on `Create table` on the right side of the screen.
 2. Enter a table name (e.g., `url-shortener`)
 3. For 'Partition Key', enter the name `shortUrl` with type `String`.
 4. Leave the table settings as 'Default'.
 5. Add a tag with a meaningful Key and Value (e.g. Key = "Project", Value ="url-shortener") to keep track of your resources.
-6. Click on `Create table` to create the table.
-7. Once the table is created, click on 'Explore Items', make sure the correct table is selected, and then click on `Create item`.
-8. In the `Attributes` section, enter the following values:
-   - Attribute Name = **shortUrl**; Value = Enter a random string (e.g., `abc123`).
-   - Click on 'Add new attribute' of type 'Number' and enter Attribute Name = **expiryTime**; Value = Enter the current date and time in epoch format (Get epoch from [here](https://www.epochconverter.com/) e.g., `1747531132`).
-   - Click on 'Add new attribute' of type 'String' and enter Attribute Name = **originalUrl**; Value = Enter a long URL (e.g., `https://www.google.com`).
-   - Click on 'Create item' to create the item.
-9. Once the item has been created, you will see it in this 'Explore Items' section.
+6. Click on `Create table` to create the table. 
+7. Once the table is created, go to the Indexes tab and click `Create Index`. 
+8. Set the following values:
+    - Partition key: originalUrlHash (String)
+    - Index name: originalUrlHash-index
+Keep all other settings as default 
+9. Click on `Create Index`.
 
+#### Enable TTL (Optional but recommended)
 *Steps 10-12 are not necessary, but more of a 'good to have', since TTL will help keep our table size nice and small. You don't need to enable it right away, and this can be done at a later time too.*
 
 10. Go back to the `Tables` section and click on the table you just created.
 11. Scroll down to find 'Time to Live (TTL)', and click on 'Turn on'.
 12. Enter **expiryTime** as the TTL attribute name and click on 'Turn on TTL'.
+
+#### (Optional) Manually Create a Sample Item
+
+1. Once the table is created, click on 'Explore Items', make sure the correct table is selected, and then click on `Create item`.
+2. In the `Attributes` section, enter the following values:
+   - Attribute Name = **shortUrl**; Value = Enter a random string (e.g., `abc123`).
+   - Add new attribute: originalUrl (String) → enter a long URL (e.g., https://www.google.com)
+   - Add new attribute: expiryTime (Number) → set to epoch time (Get epoch from [here](https://www.epochconverter.com/) e.g., `1747531132`).
+   - Add new attribute: originalUrlHash (String) → enter any placeholder string for now
+3. Click on 'Create item' to create the item. 
+4. Once the item has been created, you will see it in this 'Explore Items' section.
+
+Note:
+The service will automatically compute and populate originalUrlHash when running normally. We're only adding it manually here to visualize what the item structure looks like.
 
 ### 3. Spring Boot
 I am assuming that you have Java and an IDE of your choice installed. I prefer IntelliJ IDEA, but you can use any IDE you like. <br>
@@ -144,16 +161,26 @@ To automate the CI/CD pipeline for this project, I use a local, dockerized insta
 
 ## Technical Design
 
-The project is split into packages based on functions to keep the code clean and organized. The main packages are:
+The project is designed to run primarily on AWS Lambda, with the ability to run locally using standard Spring Boot for easier development and testing.
+
+It is split into packages based on functions to keep the code clean and organized. The main packages are:
 - `controller`: Contains the REST controller for handling incoming requests.
 - `service`: Contains the service layer for business logic.
 - `repository`: Contains the repository layer for interacting with DynamoDB.
 - `model`: Contains the model classes for the application.
 - `config`: Contains the configuration classes for AWS SDK and DynamoDB.
 
-The main class `ShortenerApplication` is the entry point for the Spring Boot application.
+### Application Entry Points
 
-### 1. controller.ShortenerController.java: 
+#### 1. StreamLambdaHandler (Production)
+This is the Lambda entry point.
+SpringBootLambdaContainerHandler initializes the Spring context on cold start and proxies API Gateway requests into the same Spring MVC controllers used locally.
+
+#### 2. ShortenerApplication (Local Development)
+Standard Spring Boot @SpringBootApplication for running the service locally at localhost:8080.
+
+### Code Walkthrough:
+#### 1. controller.ShortenerController.java: 
 
 This class contains the REST endpoints for the application, handling incoming requests and returns responses to the client. 
 
@@ -170,11 +197,11 @@ Since we are using Spring Boot, we simply need to create methods with the requir
 
    - Given a shortUrl from the user, this method calls `getOriginalUrl` from `UrlShortenerService` to return the original URL.
 
-### 2. service.UrlShortenerService.java
+#### 2. service.UrlShortenerService.java
 This is an interface that defines the methods we use above for shortening and retrieving URLs.
 The methods defined here are implemented by the `UrlShortenerServiceImpl` class.
 
-### 3. service.impl.UrlShortenerServiceImpl.java
+#### 3. service.impl.UrlShortenerServiceImpl.java
 This class implements the `UrlShortenerService` interface and contains the business logic for shortening and retrieving URLs.
 It contains the following methods:
 - `createShortUrl`: This method takes the URL input from the user and returns a shortUrl. There are 2 cases that we need to address here: first if we have a new URL that we haven't seen before, and the second if we already have that URL in our database.
@@ -194,7 +221,7 @@ It contains the following methods:
 
 - `getOriginalUrl`: This method takes a `shortUrl` as input and returns the `originalUrl`. It first checks if the `shortUrl` exists in our DynamoDB table.
 
-### 4. model.UrlMapping.java
+#### 4. model.UrlMapping.java
 
 This class is used to create the URL mapping object that mirrors our database. It contains the following fields:
 - `shortUrl`: The shortened URL.
@@ -202,13 +229,13 @@ This class is used to create the URL mapping object that mirrors our database. I
 - `expiryTime`: The expiry time of the shortened URL in epoch format.
 We use lombok annotations to generate getters, setters, and constructors for this class. 
 
-### 5. repository.UrlMappingRepository.java
+#### 5. repository.UrlMappingRepository.java
 
 This class is the interface that we use to interact with our DynamoDB table. It contains the following methods:
 - `save`: Saves a new item to the DynamoDB table.
 - `findByShortUrl`: Finds a database item based on its shortened URL.
 
-### 6. repository.impl.UrlMappingRepositoryImpl.java
+#### 6. repository.impl.UrlMappingRepositoryImpl.java
 
 This class contains the business logic to perform the database reads/writes, and implements `UrlMappingRepository`. 
 We define an object of `DynamoDBClient` from the AWS SDK to interact with our DynamoDB table.
@@ -217,11 +244,11 @@ This class contains the following methods:
 - `save`: This method takes a `UrlMapping` object as input and saves it to the DynamoDB table. It creates a new HashMap called `item` to store our data elements, and we enter our `shortUrl`, `originalUrl` and `expiryTime` into this map using AttributeValue and the corresponding `fromS() or fromN()` method based on the datatype. We then create a `PutItemRequest` object with the table name and the item to be saved, and call the `putItem` method of the `DynamoDBClient` object to save the item to the table.
 - `findByShortUrl`: This method takes a `shortUrl` as input and returns the corresponding `UrlMapping` object from the DynamoDB table. It creates a new HashMap called `key` to store the key of the item to be retrieved, and enters the `shortUrl` into this map using AttributeValue.fromS(). We then create a `GetItemRequest` object with the table name and the key to be retrieved, and call the `getItem` method of the `DynamoDBClient` object to retrieve the item from the table. This returned value is stored in a map, which we use to create a `UrlMapping` object to return. 
 
-### 7. config.DynamoDBConfig.java
+#### 7. config.DynamoDBConfig.java
 
 The last class for now, which is used to initialize the AWS SDK and DynamoDB client. We set up the parameters for accessing our DynamoDB table, inputting our region and credentials method which at this moment is using environment variables to pass our Access Key and Secret Access Key.
 
-### 8. StreamLambdaHandler.java
+#### 8. StreamLambdaHandler.java
 
 This class is boilerplate code used to create a Spring Cloud Function handler for the application. It implements the `RequestHandler` interface and overrides the `handleRequest` method to handle incoming requests. The `handleRequest` method takes an `AwsProxyRequest` as input and returns an `AwsProxyResponse` as output. It uses the `ShortenerController` class to handle the request and return the response.
 
