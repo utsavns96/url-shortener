@@ -50,6 +50,7 @@ public class ShortenerController {
     public String createShortURL(@Valid @RequestBody ShortenRequest request){
         // Logic to create a short URL from the original URL and store it in the database.
         // Return the generated short URL.
+        log.info("Received DTO: {}", request);
         String originalUrl = request.getOriginalUrl();
         log.info("Shorten request for {}", originalUrl);
         return service.createShortUrl(originalUrl);
