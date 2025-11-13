@@ -12,7 +12,7 @@ This project aims to implement a URL Shortener using Spring Boot and DynamoDB fo
 
 2) [AWS Deployment](#aws-deployment)
 
-3) Jenkins
+3) [Jenkins](#jenkins)
 
 4) [Technical Design](#technical-design)
    - [controller.ShortenerController.java](#1-controllershortenercontrollerjava-)
@@ -204,21 +204,38 @@ The methods defined here are implemented by the `UrlShortenerServiceImpl` class.
 #### 3. service.impl.UrlShortenerServiceImpl.java
 This class implements the `UrlShortenerService` interface and contains the business logic for shortening and retrieving URLs.
 It contains the following methods:
-- `createShortUrl`: This method takes the URL input from the user and returns a shortUrl. There are 2 cases that we need to address here: first if we have a new URL that we haven't seen before, and the second if we already have that URL in our database.
 
-   We start by generating a `shortUrl` using the method `generateShortUrl()`. It then checks in our database if there is an entry with this `shortUrl`. 
-  - If an entry is found, it checks if the `expiryTime` of the entry has passed the current time. 
-    - If it has, the database entry is updated with a new `expiryTime` as `now + 3600 seconds` (1 hr). 
-    - If it hasn't, it skips to the return statement.
-  
-    Finally, it returns the `shortUrl`. 
-  - If an entry is not found in the database, it creates a new entry in the database with the `shortUrl` and `originalUrl`, and sets the `expiryTime` as `now + 3600 seconds` (1 hr). It then returns the `shortUrl`.
-
+- `createShortUrl()`: This method takes the URL input from the user and returns a shortUrl.
+<br><br>
+   There are 2 cases that we need to address here:
+   1) We already have the URL in our database, i.e. it has been shortened before. 
+   2) We have a new URL that we haven't seen before.
+<br><br>
+   We start by doing a quick sanitization of our input `originalURL` to remove any extra double-quotes. Then, we compute an SHA-256 hash of the `originalURL` using `computeUrlHash()` (this becomes our `originalUrlHash`).
+   We then check our database using the GSI to see if an entry with this hash already exists.
+  <br><br>
+   * If an entry exists:
+     - We check if the `expiryTime` has passed the current time.
+       - If it has expired -> we update the existing item with a new expiryTime (now + 3600 seconds).
+       - If it has not expired -> we simply return the existing shortUrl.
+         <br><br>
+   * If no entry exists:
+     - We generate a new shortUrl, but we also need to guard against rare hash collisions.
+     - We initialize a retry loop with `counter` to 0, and initialize `MAX_RETRIES=10` (to prevent this loop from going on infinitely long).
+     - On the first attempt `(counter == 0)`, we generate a candidate `shortUrl` from the `originalURL` using `generateShortUrl()`.
+     - We then check if this `shortUrl` is already being used by some other URL (a rare case of possible hash collision).
+        - If it is already used, we regenerate a candidate by incrementing `counter` and appending the value to `originalURL`.
+        - If it isn't being used, we proceed.
+     - We either get a `shortUrl` that isn't being used, or we throw a `RuntimeException` and log it as an error. Spring Boot framework makes handling a `RuntimeException` easy for us by returning a Http Error `500: Internal Server Error` to the user.
+     - Finally, if we have a `shortUrl`, a new record in our DynamoDB table is created with the `shortUrl`, `originalUrl`, `originalUrlHash`, and `expiryTime` as `now + 3600 seconds` (1 hr).
+<br><br><br>
 - `generateShortUrl()`: This method is used to generate a `shortUrl` from a given `originalUrl`.
     We first create a MessageDigest object using the SHA-256 algorithm, and then we convert our `originalUrl` into a byte array using UTF_8 encoding. This is passed to our `digest` method, which returns a byte array.
     This byte array is converted into a Base64 string that is URL-safe, and removes any padding characters in the Base64 output.
     Finally, we take the first 8 characters of the Base64 string and return it as our `shortUrl`.
-
+  <br><br>
+- `computeUrlHash()`: This works in the same way as `generateShortUrl()`, but does not truncate the resulting hash to 8 characters.
+  <br><br>
 - `getOriginalUrl`: This method takes a `shortUrl` as input and returns the `originalUrl`. It first checks if the `shortUrl` exists in our DynamoDB table.
 
 #### 4. model.UrlMapping.java
